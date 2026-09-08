@@ -1,0 +1,6 @@
+(ns redis-clone.server)
+
+(defn start!
+  [port]  
+  (println-str (str "starting server on port:" port)))
+
