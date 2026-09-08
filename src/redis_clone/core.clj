@@ -1,13 +1,10 @@
-(ns redis-clone.core
-  (:import [java.net ServerSocket]))
-
-(def server (ServerSocket. 6379))
-
-(def client)
+(ns redis-clone.core 
+  (:require
+    [redis-clone.server :as server]))
 
 (defn -main
   [& args]
-  (server))
-
-(12 + 2)
+  (let [port-str (first args)
+        port (if port-str (Integer/parseInt port-str) 9090)]
+    (server/start! port)))
 
