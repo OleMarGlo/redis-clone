@@ -1,0 +1,43 @@
+/target
+/classes
+/checkouts
+profiles.clj
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-*
+/.nrepl-port
+/.prepl-port
+.hgignore
+.hg/
+
+
+# === Emacs Temporary and Backup Files ===
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# === Org-mode ===
+.org-id-locations
+
+# === Emacs Package Managers ===
+# Elpa/Melpa packages and lockfiles
+/elpa/
+/straight/
+.straight/
+/.package-quickstart.el
+
+# === CIDER & Clojure Artifacts ===
+# Local nREPL port files (created when your REPL runs)
+.nrepl-port
+.nrepl-repl-history
+
+# === General Project Tidy ===
+# Emacs directory-local variables (uncomment if you want them private)
+# .dir-locals.el
