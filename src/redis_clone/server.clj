@@ -13,20 +13,45 @@
                 (.getOutputStream client)
                 true)]
     (loop []
-      (let [request (.readLine reader)]
-        (when request
-          (println "Recieved:" request)
+      (when-let [request (.readLine reader)]
+        (println "Received:" request)
 
-          (let [response (commands/handle-command request)]
-            (.println writer response))))
-      (recur))))
+        (let [response (commands/handle-command request)]
+          (.println writer response))
+
+        (recur)))))
+
+(defn run-server!
+  [listener clients]
+  (loop []
+    (let [client (.accept listener)]
+
+      (swap! clients conj client)
+
+      (try
+        (handle-client client)
+        (finally
+          (swap! clients disj client)
+          (.close client))))
+    (recur)))
 
 (defn start!
-  [port]  
-  (with-open [server (ServerSocket. port)]
+  [port]
+  (let [listener (ServerSocket. port)
+        clients  (atom #{})
+        worker   (future
+                   (run-server! listener clients))]
+
     (println (str "Starting server on localhost:" port))
 
-    (let [client (.accept server)]
-      (println "Client connected:" (.getRemoteSocketAddress client))
-      (handle-client client))))
+    {:listener listener
+     :clients clients
+     :worker worker}))
+
+(defn stop!
+  [server]
+  (.close (:listener server))
+
+  (doseq [client @(:clients server)]
+    (.close client)))
 
