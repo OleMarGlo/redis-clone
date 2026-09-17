@@ -1,10 +1,11 @@
 (ns redis-clone.server
-  (:require [redis-clone.command :as commands])
-  (:import [java.net ServerSocket]
-           [java.io BufferedReader InputStreamReader PrintWriter]))
+  (:require [redis-clone.command :as commands]
+            [redis-clone.store :as store])
+  (:import [java.io BufferedReader InputStreamReader PrintWriter]
+           [java.net ServerSocket]))
 
 (defn handle-client
-  [client]
+  [client store]
   (let [reader (-> client
                    (.getInputStream)
                    (InputStreamReader.)
@@ -16,20 +17,20 @@
       (when-let [request (.readLine reader)]
         (println "Received:" request)
 
-        (let [response (commands/handle-command request)]
+        (let [response (commands/handle-command request store)]
           (.println writer response))
 
         (recur)))))
 
 (defn run-server!
-  [listener clients]
+  [{:keys [store listener clients]}]
   (loop []
     (let [client (.accept listener)]
 
       (swap! clients conj client)
 
       (try
-        (handle-client client)
+        (handle-client client store)
         (finally
           (swap! clients disj client)
           (.close client))))
@@ -37,16 +38,17 @@
 
 (defn start!
   [port]
-  (let [listener (ServerSocket. port)
+  (let [kv-store (store/create-store)
+        listener (ServerSocket. port)
         clients  (atom #{})
+        server     {:listener listener
+                    :clients clients
+                    :store kv-store}
         worker   (future
-                   (run-server! listener clients))]
+                   (run-server! server))]
 
     (println (str "Starting server on localhost:" port))
-
-    {:listener listener
-     :clients clients
-     :worker worker}))
+    (assoc server :worker worker)))
 
 (defn stop!
   [server]
