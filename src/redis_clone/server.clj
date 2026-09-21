@@ -1,25 +1,17 @@
 (ns redis-clone.server
-  (:require [redis-clone.command :as commands]
-            [redis-clone.store :as store])
-  (:import [java.io BufferedReader InputStreamReader PrintWriter]
-           [java.net ServerSocket]))
+  (:require [redis-clone.resp :as resp]
+            [redis-clone.store :as store]
+            [redis-clone.command :as commands])
+  (:import [java.net ServerSocket]))
 
 (defn handle-client
   [client store]
-  (let [reader (-> client
-                   (.getInputStream)
-                   (InputStreamReader.)
-                   (BufferedReader.))
-        writer (PrintWriter.
-                (.getOutputStream client)
-                true)]
+  (let [input (.getInputStream client)
+        output (.getOutputStream client)]
     (loop []
-      (when-let [request (.readLine reader)]
-        (println "Received:" request)
-
+      (when-let [request (resp/decode input)]
         (let [response (commands/handle-command request store)]
-          (.println writer response))
-
+          (.write output (.getBytes (pr-str response))))
         (recur)))))
 
 (defn run-server!
