@@ -1,4 +1,8 @@
-(ns redis-clone.resp.decoder)
+(ns redis-clone.resp.decoder 
+  (:require
+    [redis-clone.error :as error]))
+
+(declare decode)
 
 (defn- read-until-crlf!
   [input]
@@ -7,8 +11,7 @@
     (if (= b (int \newline))
       (if (= (last buffer) (int \return))
         (pop buffer)
-        (throw (ex-info "Malformed RESP line ending"
-                        {:type :invalid-resp})))
+        (error/throw! ::malformed-resp))
       (recur (conj buffer b) (.read input)))))
 
 (defn- bytes->string
@@ -21,8 +24,7 @@
                                 (map char)
                                 (apply str)))]
     num
-    (throw (ex-info "Malformed RESP integer"
-                    {:type :invalid-resp}))))
+    (error/throw! ::malformed-resp)))
 
 (defn- read-exactly!
   [input amount]
@@ -32,8 +34,7 @@
         buffer
         (let [read-count (.read input buffer offset (- amount offset))]
           (if (= read-count -1)
-            (throw (ex-info "Malformed RESP data"
-                            {:type :invalid-resp}))
+            (error/throw! ::malformed-resp)
             (recur (+ offset read-count))))))))
 
 (defn- consume-crlf!
@@ -41,10 +42,8 @@
   (let [bytes (read-exactly! input 2)]
     (when-not (and (= (aget bytes 0) (int \return))
                    (= (aget bytes 1) (int \newline)))
-      (throw (ex-info "Malformed RESP line ending"
-                      {:type :invalid-resp})))))
+      (error/throw! ::malformed-resp))))
 
-(declare decode)
 (defn- bytes->array!
   [input]
   (let [amount (bytes->integer (read-until-crlf! input))]
@@ -64,3 +63,31 @@
                    (read-exactly! input))]
     (consume-crlf! input)
     (bytes->string bytes)))
+
+(defn- read-string!
+  [input]
+  (->> input
+       read-until-crlf!
+       bytes->string))
+
+(defn- read-error!
+  [input]
+  (let [message (->> input
+             read-until-crlf!
+             bytes->string)]
+    (error/replace-message-in-error ::general-error message)))
+
+(defn decode
+  [input]
+  (let [b (.read input)]
+    (when-not (= b -1)
+      (let [prefix (char b)]
+        (case prefix
+          \* (bytes->array! input)
+          \: (bytes->integer (read-until-crlf! input))
+          \$ (read-bulk-string! input)
+          \+ (read-string! input)
+          \- (read-error! input)
+          (throw (ex-info "Uknown RESP type"
+                          {:type :invalid-resp
+                           :prefix prefix})))))))

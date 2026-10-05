@@ -9,7 +9,10 @@
   (let [input (.getInputStream client)
         output (.getOutputStream client)]
     (loop []
+      
+      (println "Waiting for resp")
       (when-let [request (resp/decode input)]
+        (println "decoded request:" (pr-str request))
         (let [response (commands/handle-command request store)]
           (.write output (.getBytes (pr-str response))))
         (recur)))))
